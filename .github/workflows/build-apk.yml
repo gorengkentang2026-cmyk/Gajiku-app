@@ -18,11 +18,363 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
+
+      - name: Prepare Android Project
+        run: |
+          mkdir -p android/app/src/main/java/com/rda/gajiku
+          mkdir -p android/app/src/main/res/values
+          mkdir -p android/app/src/main/res/layout
+          mkdir -p android/app/src/main/res/xml
+          mkdir -p android/app/src/main/res/mipmap-xxhdpi
+          mkdir -p android/app/src/main/assets/www
+          mkdir -p android/gradle/wrapper
+
+          cp index.html style.css app.js sw.js manifest.json android/app/src/main/assets/www/ || true
+          cp icon-*.png android/app/src/main/assets/www/ || true
+          cp icon-192.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png || true
+          cp icon-192.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png || true
+
+          cat << 'EOF' > android/settings.gradle.kts
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "GajiKu"
+          include(":app")
+          EOF
+
+          cat << 'EOF' > android/build.gradle.kts
+          plugins {
+              id("com.android.application") version "8.2.2" apply false
+              id("org.jetbrains.kotlin.android") version "1.9.22" apply false
+          }
+          EOF
+
+          cat << 'EOF' > android/gradle.properties
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          android.enableJetifier=true
+          EOF
+
+          cat << 'EOF' > android/app/build.gradle.kts
+          plugins {
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android")
+          }
+
+          android {
+              namespace = "com.rda.gajiku"
+              compileSdk = 34
+
+              defaultConfig {
+                  applicationId = "com.rda.gajiku"
+                  minSdk = 24
+                  targetSdk = 34
+                  versionCode = 1
+                  versionName = "1.0.0"
+              }
+
+              buildTypes {
+                  release {
+                      isMinifyEnabled = false
+                  }
+              }
+
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_1_8
+                  targetCompatibility = JavaVersion.VERSION_1_8
+              }
+
+              kotlinOptions {
+                  jvmTarget = "1.8"
+              }
+          }
+
+          dependencies {
+              implementation("androidx.core:core-ktx:1.12.0")
+              implementation("androidx.appcompat:appcompat:1.6.1")
+              implementation("com.google.android.material:material:1.11.0")
+              implementation("androidx.webkit:webkit:1.10.0")
+              implementation("androidx.activity:activity-ktx:1.8.2")
+          }
+          EOF
+
+          cat << 'EOF' > android/app/src/main/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:tools="http://schemas.android.com/tools">
+
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+
+              <application
+                  android:allowBackup="true"
+                  android:icon="@mipmap/ic_launcher"
+                  android:label="@string/app_name"
+                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:supportsRtl="true"
+                  android:theme="@style/Theme.GajiKu"
+                  android:usesCleartextTraffic="true"
+                  tools:targetApi="34">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:configChanges="orientation|screenSize|keyboardHidden|screenLayout"
+                      android:windowSoftInputMode="adjustResize">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+
+                  <provider
+                      android:name="androidx.core.content.FileProvider"
+                      android:authorities="com.rda.gajiku.fileprovider"
+                      android:exported="false"
+                      android:grantUriPermissions="true">
+                      <meta-data
+                          android:name="android.support.FILE_PROVIDER_PATHS"
+                          android:resource="@xml/file_paths" />
+                  </provider>
+              </application>
+          </manifest>
+          EOF
+
+          cat << 'EOF' > android/app/src/main/res/values/strings.xml
+          <resources>
+              <string name="app_name">GajiKu</string>
+              <string name="release_by">Release by RDA</string>
+          </resources>
+          EOF
+
+          cat << 'EOF' > android/app/src/main/res/values/colors.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="primary">#2563EB</color>
+              <color name="primary_dark">#1E3A8A</color>
+              <color name="status_bar">#1E3A8A</color>
+          </resources>
+          EOF
+
+          cat << 'EOF' > android/app/src/main/res/values/themes.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="Theme.GajiKu" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+                  <item name="colorPrimary">@color/primary</item>
+                  <item name="colorPrimaryVariant">@color/primary_dark</item>
+                  <item name="android:statusBarColor">@color/status_bar</item>
+              </style>
+          </resources>
+          EOF
+
+          cat << 'EOF' > android/app/src/main/res/xml/file_paths.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <paths>
+              <external-files-path name="external_files" path="." />
+              <external-cache-path name="external_cache" path="." />
+              <cache-path name="cache" path="." />
+              <files-path name="files" path="." />
+          </paths>
+          EOF
+
+          cat << 'EOF' > android/app/src/main/res/layout/activity_main.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent">
+              <WebView
+                  android:id="@+id/webView"
+                  android:layout_width="match_parent"
+                  android:layout_height="match_parent" />
+          </FrameLayout>
+          EOF
+
+          cat << 'EOF' > android/app/src/main/java/com/rda/gajiku/WebAppInterface.kt
+          package com.rda.gajiku
+
+          import android.content.Context
+          import android.content.Intent
+          import android.net.Uri
+          import android.os.Environment
+          import android.print.PrintAttributes
+          import android.print.PrintManager
+          import android.webkit.JavascriptInterface
+          import android.webkit.WebView
+          import android.widget.Toast
+          import androidx.core.content.FileProvider
+          import java.io.File
+          import java.io.FileOutputStream
+          import java.io.OutputStreamWriter
+          import java.nio.charset.StandardCharsets
+
+          class WebAppInterface(private val context: Context, private val webView: WebView) {
+              @JavascriptInterface
+              fun showToast(message: String) {
+                  Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+              }
+
+              @JavascriptInterface
+              fun exportExcelFile(csvContent: String, suggestedFileName: String) {
+                  try {
+                      val fileName = if (suggestedFileName.endsWith(".csv")) suggestedFileName else "$suggestedFileName.csv"
+                      val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                      if (!downloadsDir.exists()) downloadsDir.mkdirs()
+
+                      val targetFile = File(downloadsDir, fileName)
+                      FileOutputStream(targetFile).use { fos ->
+                          OutputStreamWriter(fos, StandardCharsets.UTF_8).use { writer ->
+                              writer.write(csvContent)
+                          }
+                      }
+
+                      val uri: Uri = FileProvider.getUriForFile(
+                          context,
+                          "${context.packageName}.fileprovider",
+                          targetFile
+                      )
+
+                      val intent = Intent(Intent.ACTION_SEND).apply {
+                          type = "text/csv"
+                          putExtra(Intent.EXTRA_STREAM, uri)
+                          putExtra(Intent.EXTRA_SUBJECT, fileName)
+                          addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                      }
+
+                      val chooser = Intent.createChooser(intent, "Buka atau Bagikan Laporan Excel")
+                      chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                      context.startActivity(chooser)
+                  } catch (e: Exception) {
+                      Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                  }
+              }
+
+              @JavascriptInterface
+              fun printCurrentPage(jobTitle: String) {
+                  webView.post {
+                      val printManager = context.getSystemService(Context.PRINT_SERVICE) as? PrintManager
+                      if (printManager != null) {
+                          val printAdapter = webView.createPrintDocumentAdapter(jobTitle)
+                          val printAttributes = PrintAttributes.Builder()
+                              .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                              .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
+                              .build()
+                          printManager.print(jobTitle, printAdapter, printAttributes)
+                      }
+                  }
+              }
+          }
+          EOF
+
+          cat << 'EOF' > android/app/src/main/java/com/rda/gajiku/MainActivity.kt
+          package com.rda.gajiku
+
+          import android.annotation.SuppressLint
+          import android.content.Intent
+          import android.net.Uri
+          import android.os.Bundle
+          import android.webkit.WebResourceRequest
+          import android.webkit.WebResourceResponse
+          import android.webkit.WebSettings
+          import android.webkit.WebView
+          import android.webkit.WebViewClient
+          import androidx.activity.OnBackPressedCallback
+          import androidx.appcompat.app.AppCompatActivity
+          import androidx.webkit.WebViewAssetLoader
+
+          class MainActivity : AppCompatActivity() {
+              private lateinit var webView: WebView
+
+              @SuppressLint("SetJavaScriptEnabled")
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  setContentView(R.layout.activity_main)
+
+                  webView = findViewById(R.id.webView)
+
+                  onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+                      override fun handleOnBackPressed() {
+                          webView.evaluateJavascript(
+                              "(function() { " +
+                              "  var modal = document.querySelector('.modal-overlay[style*=\"flex\"], .modal-overlay[style*=\"block\"]'); " +
+                              "  if (modal) { modal.style.display = 'none'; return 'closed'; } " +
+                              "  return 'none'; " +
+                              "})()"
+                          ) { result ->
+                              if (result != "\"closed\"") {
+                                  if (webView.canGoBack()) {
+                                      webView.goBack()
+                                  } else {
+                                      isEnabled = false
+                                      onBackPressedDispatcher.onBackPressed()
+                                  }
+                              }
+                          }
+                      }
+                  })
+
+                  val assetLoader = WebViewAssetLoader.Builder()
+                      .setDomain("appassets.androidcache.net")
+                      .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+                      .build()
+
+                  webView.settings.apply {
+                      javaScriptEnabled = true
+                      domStorageEnabled = true
+                      databaseEnabled = true
+                      allowFileAccess = true
+                      allowContentAccess = true
+                      useWideViewPort = true
+                      loadWithOverviewMode = true
+                      cacheMode = WebSettings.LOAD_DEFAULT
+                      mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                  }
+
+                  val bridge = WebAppInterface(this, webView)
+                  webView.addJavascriptInterface(bridge, "AndroidBridge")
+
+                  webView.webViewClient = object : WebViewClient() {
+                      override fun shouldInterceptRequest(
+                          view: WebView,
+                          request: WebResourceRequest
+                      ): WebResourceResponse? {
+                          return assetLoader.shouldInterceptRequest(request.url)
+                      }
+
+                      override fun shouldOverrideUrlLoading(
+                          view: WebView,
+                          request: WebResourceRequest
+                      ): Boolean {
+                          val url = request.url.toString()
+                          if (url.startsWith("https://appassets.androidcache.net/") || url.startsWith("file:///android_asset/")) {
+                              return false
+                          }
+                          return try {
+                              startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                              true
+                          } catch (e: Exception) {
+                              false
+                          }
+                      }
+                  }
+
+                  webView.loadUrl("https://appassets.androidcache.net/assets/www/index.html")
+              }
+          }
+          EOF
 
       - name: Build APK (Kotlin Native)
         run: |
@@ -33,10 +385,10 @@ jobs:
 
       - name: Prepare APK File
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/GajiKu-Release-by-RDA.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk GajiKu-Release-by-RDA.apk
 
       - name: Upload APK Artifact (Siap Download ke HP)
         uses: actions/upload-artifact@v4
         with:
           name: GajiKu-Release-by-RDA
-          path: android/app/build/outputs/apk/debug/GajiKu-Release-by-RDA.apk
+          path: GajiKu-Release-by-RDA.apk
